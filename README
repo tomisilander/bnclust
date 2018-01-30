@@ -1,0 +1,4 @@
+To run all the datas, one can say 
+
+python runNdatas.py < datas.txt
+

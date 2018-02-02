@@ -1,43 +1,49 @@
+from functools import partial
+from itertools import product
 import numpy as np
 
-from sklearn.mixture import GaussianMixture
+from sklearn.preprocessing import LabelEncoder
 from sklearn.cluster import spectral_clustering
-from sklearn.cluster import k_means
+
 from sklearn.metrics import adjusted_rand_score
 from sklearn.metrics import adjusted_mutual_info_score
 from sklearn.metrics import v_measure_score
-from scipy.spatial.distance import cdist
+
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import jaccard_similarity_score
+
 
 from max_correlation import max_correlation
 from pic import pic
 
 
 def read_data(data_file, label_file):
-    return (np.loadtxt(data_file),
-            np.fromfile(label_file, dtype=int, sep=' '))
+    le = LabelEncoder()
+    return (np.loadtxt(data_file, dtype=int),
+            le.fit_transform(open(label_file).read().split()))
 
+
+def overlap_sim(vectors):
+    return np.array([[accuracy_score(v1,v2) for v1 in vectors] 
+                    for v2 in vectors])
 
 def compute_labels(vectors, K, bn_sim):
-    N = vectors.shape[0]
     labels = {}
 
-    labels["BN_CC"] = max_correlation(bn_sim, K, 10)
-
-    pw_distances = cdist(vectors, vectors, 'seuclidean')  # cosine
-    pw_sims = np.max(pw_distances) - pw_distances + np.min(pw_distances)
-    Q = np.eye(N) - (1.0 / N) * np.dot(np.ones((N, 1)), np.ones((1, N)))
-    Corr_Mat = np.dot(np.dot(Q, pw_sims), Q)
-    labels["CC"] = max_correlation(Corr_Mat, K, 10)
-
-    labels["Kmeans"] = k_means(vectors, n_clusters=K, n_init=10)[1]
-
-    clf = GaussianMixture(n_components=K, covariance_type='full', n_init=10)
-    clf.fit(vectors)
-    labels["GMM"] = clf.predict(vectors)
-
-    labels["SP"] = spectral_clustering(pw_sims, K)
-
-    labels["PIC"] = pic(pw_sims, 1000, 1.0e-8, K)[1]
+    osim = overlap_sim(vectors)
+    sim = {"BN":bn_sim, "OL":osim}
+    clusalg = {"CC" : partial(max_correlation, my_K=K, my_itr_num=10),
+               "SP" : partial(spectral_clustering, n_clusters=K),
+               # "PIC" : partial(pic, maxiter=1000, eps=1.0e-8, K=K)
+              }
+    for ((simname, simx), (clusname,clusalg)) in product(sim.items(),clusalg.items()):
+        try:
+            labelname = '_'.join((simname,clusname))
+            labels[labelname] = clusalg(simx)
+        except:
+            print("Failed",labelname)
+            if labelname in labels:
+                del labels[labelname]
 
     return labels
 
@@ -47,7 +53,11 @@ def evaluate_labels(labels, true_labels):
     scores = (adjusted_mutual_info_score, adjusted_rand_score, v_measure_score)
     for method in labels.keys():
         for score in scores:
-            res[method].append(score(true_labels, labels[method]))
+            try:
+                res[method].append(score(true_labels, labels[method]))
+            except:
+                print("Failed",method,str(score))
+
     return res
 
 

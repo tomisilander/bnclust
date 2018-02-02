@@ -1,0 +1,15 @@
+Balance_Scale
+Balloons1
+Balloons2
+Car_Evaluation
+Hayes-Roth
+Lenses
+Monks-1_test
+Monks-1_train
+Monks-2_test
+Monks-2_train
+Monks-3_test
+Monks-3_train
+SPECT_test
+SPECT_train
+Tic-Tac-Toe

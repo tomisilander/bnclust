@@ -1,0 +1,3 @@
+./disdatcateg.sh < ../smalldatas.txt # creates disdata directory and copies data to ../data
+./datas2sims.sh  < ../smalldatas.txt # uses the disdata to get sims - see code
+
